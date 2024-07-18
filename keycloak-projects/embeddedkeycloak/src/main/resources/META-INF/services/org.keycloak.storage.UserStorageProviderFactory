@@ -1,0 +1,2 @@
+com.lucassilvs.springbootkeycloak.config.providers.custom.CustomUserStorageProviderFactory
+com.lucassilvs.springbootkeycloak.config.providers.crud.CrudUserStorageProviderFactory

@@ -10,6 +10,7 @@
     <packaging>pom</packaging>
     <modules>
         <module>embeddedkeycloak</module>
+        <module>customprovider</module>
     </modules>
 
     <properties>
