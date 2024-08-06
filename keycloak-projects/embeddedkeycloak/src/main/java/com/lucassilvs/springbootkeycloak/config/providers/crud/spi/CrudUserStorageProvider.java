@@ -18,12 +18,8 @@ import org.keycloak.storage.user.UserQueryProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.*;
-import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.lucassilvs.springbootkeycloak.config.providers.crud.spi.CrudUserStorageProviderConstants.*;
@@ -90,6 +86,10 @@ public class CrudUserStorageProvider implements
 
     @Override
     public boolean isValid(RealmModel realm, UserModel user, CredentialInput credentialInput) {
+
+        log.info("IP do cliente de origem: {}",ksession.getContext().getConnection().getRemoteAddr());
+
+
         log.info("[I57] isValid(realm={},user={},credentialInput.type={})", realm.getName(), user.getUsername(), credentialInput.getType());
         if (!this.supportsCredentialType(credentialInput.getType())) {
             return false;

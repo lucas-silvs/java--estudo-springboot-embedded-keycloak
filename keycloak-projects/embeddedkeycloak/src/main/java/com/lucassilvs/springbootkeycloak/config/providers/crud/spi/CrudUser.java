@@ -3,15 +3,13 @@ package com.lucassilvs.springbootkeycloak.config.providers.crud.spi;
 import org.keycloak.common.util.MultivaluedHashMap;
 import org.keycloak.component.ComponentModel;
 import org.keycloak.credential.LegacyUserCredentialManager;
-import org.keycloak.models.KeycloakSession;
-import org.keycloak.models.RealmModel;
-import org.keycloak.models.SubjectCredentialManager;
-import org.keycloak.models.UserModel;
+import org.keycloak.models.*;
 import org.keycloak.storage.adapter.AbstractUserAdapter;
 
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 class CrudUser extends
         AbstractUserAdapter // Essa classe é responsável por prover a implementação de armazenamento de usuários
@@ -23,8 +21,10 @@ class CrudUser extends
     private final String lastName;
     private final String birthDate;
     private final String phone;
+     private Set<RoleModel> roles;
 
-    private CrudUser(KeycloakSession session, RealmModel realm,
+
+     private CrudUser(KeycloakSession session, RealmModel realm,
                      ComponentModel storageProviderModel,
                      String username,
                      String email,
@@ -38,7 +38,10 @@ class CrudUser extends
         this.lastName = lastName;
         this.birthDate = birthDate;
         this.phone = phone;
+        this.roles = Set.of(realm.getDefaultRole());
     }
+
+
 
 
     @Override
@@ -68,6 +71,30 @@ class CrudUser extends
     public String getPhone() {
         return phone;
     }
+
+     public void setRoles(Set<RoleModel> roles) {
+         this.roles = roles;
+     }
+
+     @Override
+     public Set<RoleModel> getRealmRoleMappings() {
+         return roles;
+     }
+
+     @Override
+     public void grantRole(RoleModel role) {
+         roles.add(role);
+     }
+
+     @Override
+     public void deleteRoleMapping(RoleModel role) {
+         roles.remove(role);
+     }
+
+     @Override
+     public Set<RoleModel> getRoleMappings() {
+         return roles;
+     }
 
     @Override
     public Map<String, List<String>> getAttributes() {
