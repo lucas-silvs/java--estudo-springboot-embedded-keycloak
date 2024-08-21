@@ -1,10 +1,12 @@
 package com.lucassilvs.springbootkeycloak.config.providers.realmprovider.custom.models;
 
+import java.util.Map;
+
 public class CustomUserRequest {
 
     private String username;
     private String email;
-
+    private Map<String,String> attributes;
     private  String nome;
     private  String cpf;
     private  String dataNascimento;
@@ -22,6 +24,15 @@ public class CustomUserRequest {
         this.dataNascimento = dataNascimento;
         this.telefone = telefone;
         this.senha = senha;
+    }
+
+    public Map<String, String> getAttributes() {
+        return attributes;
+    }
+
+    public CustomUserRequest setAttributes(Map<String, String> attributes) {
+        this.attributes = attributes;
+        return this;
     }
 
     public String getUsername() {
