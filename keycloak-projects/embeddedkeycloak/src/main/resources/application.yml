@@ -12,17 +12,17 @@ spring:
     hibernate:
       ddl-auto: update
   datasource:
-    url: jdbc:mysql://localhost:3303/keycloak?sslMode=DISABLED
-    username: root
-    password: admin
+    url: jdbc:mysql://localhost:3303/keycloak?useSSL=false
+    username: keycloak
+    password: keycloak01*
     driver-class-name: com.mysql.cj.jdbc.Driver
 
 keycloak:
   connectionsJpa:
-    url: "jdbc:mysql://localhost:3303/keycloak?sslMode=DISABLED"
+    url: jdbc:mysql://localhost:3303/keycloak?useSSL=false
     driver: com.mysql.cj.jdbc.Driver
-    user: root
-    password: admin
+    user: keycloak
+    password: keycloak01*
   server:
     contextPath: /auth
     adminUser:
