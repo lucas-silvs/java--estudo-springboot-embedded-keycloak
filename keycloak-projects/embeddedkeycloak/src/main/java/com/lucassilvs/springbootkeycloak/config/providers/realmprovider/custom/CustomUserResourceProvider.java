@@ -6,20 +6,20 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.keycloak.models.*;
+import org.keycloak.protocol.oidc.mappers.HardcodedClaim;
 import org.keycloak.services.managers.AppAuthManager;
 import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.services.resource.RealmResourceProvider;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.lucassilvs.springbootkeycloak.config.providers.realmprovider.custom.ProviderEnum.ERROR_MESSAGE_BEARER_AUTH_REQUIRED;
 import static com.lucassilvs.springbootkeycloak.config.providers.realmprovider.custom.ProviderEnum.ERROR_MESSAGE_ROLE_REQUIRED;
 
 public class CustomUserResourceProvider implements RealmResourceProvider {
 
+    public static final String PROTOCOL_OPENID_CONNECT = "openid-connect";
     private final KeycloakSession keycloakSession;
 
     //Campo para autenticação com Token JWT
@@ -44,7 +44,7 @@ public class CustomUserResourceProvider implements RealmResourceProvider {
     @Path("create-custom-user")
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response createCustomUser( CustomUserRequest customUserRequest) {
+    public Response createCustomUser(CustomUserRequest customUserRequest) {
         validateToken();
 
         // Adicione outras propriedades necessárias
@@ -76,22 +76,52 @@ public class CustomUserResourceProvider implements RealmResourceProvider {
     @Path("migrate-client")
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response createUserFromExternalProvider( MigrationCredentialRequest migrationCredentialRequest) {
+    public Response createUserFromExternalProvider(MigrationCredentialRequest migrationCredentialRequest) {
+
         validateToken();
 
         RealmModel realm = keycloakSession.getContext().getRealm();
 
         ClientModel clientModel = keycloakSession.clients().addClient(realm, migrationCredentialRequest.getUsername());
 
-        migrationCredentialRequest.getAttributes().forEach(clientModel::setAttribute);
+        Set<ClientScopeModel> scopeModels = migrationCredentialRequest.getScopes().stream().map(scope -> {
+            ClientScopeModel model = keycloakSession.clientScopes().addClientScope(realm, scope);
+            model.setDescription(scope);
+            model.setIncludeInTokenScope(true);
+            model.setProtocol(PROTOCOL_OPENID_CONNECT);
+
+            return  model;
+        }).collect(Collectors.toSet());
+        clientModel.addClientScopes(scopeModels,false);
+
+
+        // Configurar as propriedades do mapeamento
+
+        migrationCredentialRequest.getAttributes().forEach((key, value) -> {
+            Map<String, String> configMapper = Map.of(
+                    "access.token.claim", "true",
+                    "userinfo.token.claim", "true",
+                    "claim.name", key,
+                    "claim.value", value,
+                    "jsonType.label", "String"
+            );
+
+            ProtocolMapperModel mapper = new ProtocolMapperModel();
+            mapper.setName(String.format("custom-field-%s-mapper", key));
+            mapper.setProtocol(PROTOCOL_OPENID_CONNECT);
+            mapper.setProtocolMapper(HardcodedClaim.PROVIDER_ID);
+            mapper.setConfig(configMapper);
+            clientModel.addProtocolMapper(mapper);
+        });
 
         clientModel.setServiceAccountsEnabled(true);
-        clientModel.setProtocol("openid-connect");
+        clientModel.setProtocol(PROTOCOL_OPENID_CONNECT);
         clientModel.setClientAuthenticatorType("client-secret");
         clientModel.setStandardFlowEnabled(true);
         clientModel.setDirectAccessGrantsEnabled(true);
+        clientModel.setProtocol(PROTOCOL_OPENID_CONNECT);
+        clientModel.setStandardFlowEnabled(false);
         clientModel.setSecret(migrationCredentialRequest.getHash());
-
 
         return Response.status(Response.Status.CREATED).build();
     }
@@ -99,7 +129,7 @@ public class CustomUserResourceProvider implements RealmResourceProvider {
     @Path("migrate-client")
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getClientFromExternalProvider( @QueryParam("clientId") String clientId) {
+    public Response getClientFromExternalProvider(@QueryParam("clientId") String clientId) {
         // validação se está utilizando autenticação com Bearer Token
         validateToken();
 
@@ -114,7 +144,7 @@ public class CustomUserResourceProvider implements RealmResourceProvider {
     @Path("migrate-client")
     @DELETE
     @Produces(MediaType.APPLICATION_JSON)
-    public Response deleteClientFromExternalProvider( @QueryParam("clientId") String clientId) {
+    public Response deleteClientFromExternalProvider(@QueryParam("clientId") String clientId) {
         // validação se está utilizando autenticação com Bearer Token
         validateToken();
 

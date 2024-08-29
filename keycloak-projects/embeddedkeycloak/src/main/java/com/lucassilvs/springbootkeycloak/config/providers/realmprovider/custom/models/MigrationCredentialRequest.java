@@ -1,18 +1,22 @@
 package com.lucassilvs.springbootkeycloak.config.providers.realmprovider.custom.models;
 
+import java.util.List;
 import java.util.Map;
 
 public class MigrationCredentialRequest {
     private String username;
     private Map<String,String> attributes;
+    private List<String> scopes;
     private String salt;
     private String hash;
     private String algorithm;
     private String iterations;
 
-    public MigrationCredentialRequest(String username, Map<String, String> attributes, String salt, String hash, String algorithm, String iterations) {
+
+    public MigrationCredentialRequest(String username, Map<String, String> attributes, List<String> scopes, String salt, String hash, String algorithm, String iterations) {
         this.username = username;
         this.attributes = attributes;
+        this.scopes = scopes;
         this.salt = salt;
         this.hash = hash;
         this.algorithm = algorithm;
@@ -26,6 +30,11 @@ public class MigrationCredentialRequest {
         return username;
     }
 
+    public MigrationCredentialRequest setUsername(String username) {
+        this.username = username;
+        return this;
+    }
+
     public Map<String, String> getAttributes() {
         return attributes;
     }
@@ -35,11 +44,14 @@ public class MigrationCredentialRequest {
         return this;
     }
 
-    public MigrationCredentialRequest setUsername(String username) {
-        this.username = username;
-        return this;
+    public List<String> getScopes() {
+        return scopes;
     }
 
+    public MigrationCredentialRequest setScopes(List<String> scopes) {
+        this.scopes = scopes;
+        return this;
+    }
 
     public String getSalt() {
         return salt;
