@@ -4,9 +4,16 @@ server:
 
 
 spring:
+  sql:
+    init:
+      mode: never
   jackson:
     time-zone: UTC
   jpa:
+    properties:
+      hibernate:
+        boot:
+          allow_jdbc_metadata_access: false
     defer-datasource-initialization: true
     database: mysql
     hibernate:
