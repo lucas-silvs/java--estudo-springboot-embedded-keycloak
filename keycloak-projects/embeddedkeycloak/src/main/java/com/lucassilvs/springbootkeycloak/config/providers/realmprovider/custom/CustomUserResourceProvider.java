@@ -1,5 +1,7 @@
 package com.lucassilvs.springbootkeycloak.config.providers.realmprovider.custom;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lucassilvs.springbootkeycloak.config.providers.realmprovider.custom.models.CustomUserRequest;
 import com.lucassilvs.springbootkeycloak.config.providers.realmprovider.custom.models.MigrationCredentialRequest;
 import jakarta.ws.rs.*;
@@ -10,6 +12,8 @@ import org.keycloak.protocol.oidc.mappers.HardcodedClaim;
 import org.keycloak.services.managers.AppAuthManager;
 import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.services.resource.RealmResourceProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -19,8 +23,15 @@ import static com.lucassilvs.springbootkeycloak.config.providers.realmprovider.c
 
 public class CustomUserResourceProvider implements RealmResourceProvider {
 
+    private static final Logger log = LoggerFactory.getLogger(CustomUserResourceProvider.class);
+    public static final String JSON_TYPE_LABEL = "jsonType.label";
+    public static final String TYPE_LABEL_JSON = "JSON";
+    public static final String TYPE_LABE_STRING = "String";
+    public static final String CLAIM_VALUE = "claim.value";
     public static final String PROTOCOL_OPENID_CONNECT = "openid-connect";
     private final KeycloakSession keycloakSession;
+
+    private final ObjectMapper objectMapper;
 
     //Campo para autenticação com Token JWT
     private final AuthenticationManager.AuthResult auth;
@@ -28,6 +39,7 @@ public class CustomUserResourceProvider implements RealmResourceProvider {
     public CustomUserResourceProvider(KeycloakSession keycloakSession) {
         this.keycloakSession = keycloakSession;
         this.auth = new AppAuthManager.BearerTokenAuthenticator(keycloakSession).authenticate();
+        this.objectMapper = new ObjectMapper();
     }
 
 
@@ -82,38 +94,87 @@ public class CustomUserResourceProvider implements RealmResourceProvider {
 
         RealmModel realm = keycloakSession.getContext().getRealm();
 
-        ClientModel clientModel = keycloakSession.clients().addClient(realm, migrationCredentialRequest.getUsername());
+        ClientModel clientModel = keycloakSession.clients().addClient(realm, migrationCredentialRequest.getClientId());
 
-        Set<ClientScopeModel> scopeModels = migrationCredentialRequest.getScopes().stream().map(scope -> {
-            ClientScopeModel model = keycloakSession.clientScopes().addClientScope(realm, scope);
-            model.setDescription(scope);
-            model.setIncludeInTokenScope(true);
-            model.setProtocol(PROTOCOL_OPENID_CONNECT);
-
-            return  model;
-        }).collect(Collectors.toSet());
-        clientModel.addClientScopes(scopeModels,false);
-
+        Set<ClientScopeModel> scopeModels = migrationCredentialRequest.getScopes()
+                .stream()
+                .map(scope -> createOrReturnExistentScope(scope, realm)).collect(Collectors.toSet());
+        clientModel.addClientScopes(scopeModels, false);
 
         // Configurar as propriedades do mapeamento
 
         migrationCredentialRequest.getAttributes().forEach((key, value) -> {
-            Map<String, String> configMapper = Map.of(
-                    "access.token.claim", "true",
-                    "userinfo.token.claim", "true",
-                    "claim.name", key,
-                    "claim.value", value,
-                    "jsonType.label", "String"
-            );
-
-            ProtocolMapperModel mapper = new ProtocolMapperModel();
-            mapper.setName(String.format("custom-field-%s-mapper", key));
-            mapper.setProtocol(PROTOCOL_OPENID_CONNECT);
-            mapper.setProtocolMapper(HardcodedClaim.PROVIDER_ID);
-            mapper.setConfig(configMapper);
+            ProtocolMapperModel mapper = mappingFieldToCustomMapper(key, value);
             clientModel.addProtocolMapper(mapper);
         });
 
+        createClient(migrationCredentialRequest, clientModel);
+
+        return Response.status(Response.Status.CREATED).build();
+    }
+
+    private ProtocolMapperModel mappingFieldToCustomMapper(String key, Object value) {
+        Map<String, String> configMapper = new HashMap<>();
+        configMapper.put("access.token.claim", "true");
+        configMapper.put("userinfo.token.claim", "true");
+        configMapper.put("claim.name", key);
+
+        // Identifica se o valor é uma string ou um objeto JSON
+        try {
+            if (value instanceof String stringValue) {
+                JsonNode jsonNode = objectMapper.readTree(stringValue);
+                if (jsonNode.isObject()) {
+                    configMapper.put(CLAIM_VALUE, jsonNode.toString());
+                    configMapper.put(JSON_TYPE_LABEL, TYPE_LABEL_JSON);
+                } else if (jsonNode.isTextual()) {
+                    configMapper.put(CLAIM_VALUE, jsonNode.asText());
+                    configMapper.put(JSON_TYPE_LABEL, TYPE_LABE_STRING);
+                }
+            } else if (value instanceof Map) {
+                // Se o valor já for um mapa, converte para JSON
+                JsonNode jsonNode = objectMapper.valueToTree(value);
+                configMapper.put(CLAIM_VALUE, jsonNode.toString());
+                configMapper.put(JSON_TYPE_LABEL, TYPE_LABEL_JSON);
+            } else {
+                // Trate outros tipos conforme necessário
+                configMapper.put(CLAIM_VALUE, value.toString());
+                configMapper.put(JSON_TYPE_LABEL, TYPE_LABE_STRING);
+            }
+        } catch (Exception e) {
+            // Se ocorrer um erro durante a desserialização, trate como string
+            configMapper.put(CLAIM_VALUE, value.toString());
+            configMapper.put(JSON_TYPE_LABEL, TYPE_LABE_STRING);
+        }
+
+        ProtocolMapperModel mapper = new ProtocolMapperModel();
+        mapper.setName(String.format("custom-field-%s-mapper", key));
+        mapper.setProtocol(PROTOCOL_OPENID_CONNECT);
+        mapper.setProtocolMapper(HardcodedClaim.PROVIDER_ID);
+        mapper.setConfig(configMapper);
+        return mapper;
+    }
+
+    private ClientScopeModel createOrReturnExistentScope(String scope, RealmModel realm) {
+
+        ClientScopeModel scopeModel = keycloakSession.clientScopes()
+                .getClientScopesStream(realm)
+                .filter(clientScope -> scope.equals(clientScope.getName()))
+                .findFirst()
+                .orElse(null);
+
+        if (scopeModel == null) {
+            log.info("Scope não cadastrado no Keycloak - {}", scope);
+
+            scopeModel = keycloakSession.clientScopes().addClientScope(realm, scope);
+            scopeModel.setDescription(scope);
+            scopeModel.setIncludeInTokenScope(true);
+            scopeModel.setProtocol(PROTOCOL_OPENID_CONNECT);
+        }
+
+        return scopeModel;
+    }
+
+    private static void createClient(MigrationCredentialRequest migrationCredentialRequest, ClientModel clientModel) {
         clientModel.setServiceAccountsEnabled(true);
         clientModel.setProtocol(PROTOCOL_OPENID_CONNECT);
         clientModel.setClientAuthenticatorType("client-secret");
@@ -121,9 +182,7 @@ public class CustomUserResourceProvider implements RealmResourceProvider {
         clientModel.setDirectAccessGrantsEnabled(true);
         clientModel.setProtocol(PROTOCOL_OPENID_CONNECT);
         clientModel.setStandardFlowEnabled(false);
-        clientModel.setSecret(migrationCredentialRequest.getHash());
-
-        return Response.status(Response.Status.CREATED).build();
+        clientModel.setSecret(migrationCredentialRequest.getClientSecret());
     }
 
     @Path("migrate-client")

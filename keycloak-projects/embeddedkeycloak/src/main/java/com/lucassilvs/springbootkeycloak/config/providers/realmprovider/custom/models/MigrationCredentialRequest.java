@@ -4,42 +4,34 @@ import java.util.List;
 import java.util.Map;
 
 public class MigrationCredentialRequest {
-    private String username;
-    private Map<String,String> attributes;
+    private String clientId;
+    private String clientSecret;
+    private Map<String, Object> attributes;
     private List<String> scopes;
-    private String salt;
-    private String hash;
-    private String algorithm;
-    private String iterations;
 
-
-    public MigrationCredentialRequest(String username, Map<String, String> attributes, List<String> scopes, String salt, String hash, String algorithm, String iterations) {
-        this.username = username;
-        this.attributes = attributes;
-        this.scopes = scopes;
-        this.salt = salt;
-        this.hash = hash;
-        this.algorithm = algorithm;
-        this.iterations = iterations;
+    public String getClientId() {
+        return clientId;
     }
 
-    public MigrationCredentialRequest() {
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public MigrationCredentialRequest setUsername(String username) {
-        this.username = username;
+    public MigrationCredentialRequest setClientId(String clientId) {
+        this.clientId = clientId;
         return this;
     }
 
-    public Map<String, String> getAttributes() {
+    public String getClientSecret() {
+        return clientSecret;
+    }
+
+    public MigrationCredentialRequest setClientSecret(String clientSecret) {
+        this.clientSecret = clientSecret;
+        return this;
+    }
+
+    public Map<String, Object> getAttributes() {
         return attributes;
     }
 
-    public MigrationCredentialRequest setAttributes(Map<String, String> attributes) {
+    public MigrationCredentialRequest setAttributes(Map<String, Object> attributes) {
         this.attributes = attributes;
         return this;
     }
@@ -50,42 +42,6 @@ public class MigrationCredentialRequest {
 
     public MigrationCredentialRequest setScopes(List<String> scopes) {
         this.scopes = scopes;
-        return this;
-    }
-
-    public String getSalt() {
-        return salt;
-    }
-
-    public MigrationCredentialRequest setSalt(String salt) {
-        this.salt = salt;
-        return this;
-    }
-
-    public String getHash() {
-        return hash;
-    }
-
-    public MigrationCredentialRequest setHash(String hash) {
-        this.hash = hash;
-        return this;
-    }
-
-    public String getAlgorithm() {
-        return algorithm;
-    }
-
-    public MigrationCredentialRequest setAlgorithm(String algorithm) {
-        this.algorithm = algorithm;
-        return this;
-    }
-
-    public String getIterations() {
-        return iterations;
-    }
-
-    public MigrationCredentialRequest setIterations(String iterations) {
-        this.iterations = iterations;
         return this;
     }
 }
