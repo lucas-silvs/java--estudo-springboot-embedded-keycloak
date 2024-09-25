@@ -8,12 +8,11 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.keycloak.models.*;
+import org.keycloak.protocol.oidc.mappers.AudienceProtocolMapper;
 import org.keycloak.protocol.oidc.mappers.HardcodedClaim;
 import org.keycloak.services.managers.AppAuthManager;
 import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.services.resource.RealmResourceProvider;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -23,7 +22,6 @@ import static com.lucassilvs.springbootkeycloak.config.providers.realmprovider.c
 
 public class CustomUserResourceProvider implements RealmResourceProvider {
 
-    private static final Logger log = LoggerFactory.getLogger(CustomUserResourceProvider.class);
     public static final String JSON_TYPE_LABEL = "jsonType.label";
     public static final String TYPE_LABEL_JSON = "JSON";
     public static final String TYPE_LABE_STRING = "String";
@@ -101,6 +99,8 @@ public class CustomUserResourceProvider implements RealmResourceProvider {
                 .map(scope -> createOrReturnExistentScope(scope, realm)).collect(Collectors.toSet());
         clientModel.addClientScopes(scopeModels, false);
 
+        createAudienceFieldClient(clientModel, migrationCredentialRequest.getClientId());
+
         // Configurar as propriedades do mapeamento
 
         migrationCredentialRequest.getAttributes().forEach((key, value) -> {
@@ -111,6 +111,21 @@ public class CustomUserResourceProvider implements RealmResourceProvider {
         createClient(migrationCredentialRequest, clientModel);
 
         return Response.status(Response.Status.CREATED).build();
+    }
+
+    private void createAudienceFieldClient(ClientModel clientModel, String clientId) {
+        Map<String, String> configMapper = new HashMap<>();
+        configMapper.put("access.token.claim", "true");
+        configMapper.put("userinfo.token.claim", "true");
+        configMapper.put("included.custom.audience", clientId);
+
+        ProtocolMapperModel mapper = new ProtocolMapperModel();
+        mapper.setName(String.format("audience-%s-mapper", clientId));
+        mapper.setProtocol(PROTOCOL_OPENID_CONNECT);
+        mapper.setProtocolMapper(AudienceProtocolMapper.PROVIDER_ID);
+        mapper.setConfig(configMapper);
+
+        clientModel.addProtocolMapper(mapper);
     }
 
     private ProtocolMapperModel mappingFieldToCustomMapper(String key, Object value) {
@@ -163,7 +178,6 @@ public class CustomUserResourceProvider implements RealmResourceProvider {
                 .orElse(null);
 
         if (scopeModel == null) {
-            log.info("Scope não cadastrado no Keycloak - {}", scope);
 
             scopeModel = keycloakSession.clientScopes().addClientScope(realm, scope);
             scopeModel.setDescription(scope);
