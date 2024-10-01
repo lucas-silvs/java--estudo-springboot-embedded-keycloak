@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>reCAPTCHA demo: Simple page</title>
+    <script src="https://www.google.com/recaptcha/enterprise.js?render=<omitido>"></script>
+  </head>
+  <body>
+    <h1>reCAPTCHA Enterprise Token Generator</h1>
+    <button id="generate-token">Generate Token</button>
+    <p>Token: <span id="recaptcha-token"></span></p>
+
+    <script>
+      function onClick(e) {
+        e.preventDefault();
+        grecaptcha.enterprise.ready(async () => {
+          const token = await grecaptcha.enterprise.execute("<omitido>", {
+            action: "LOGIN",
+          });
+          // Display the token on the screen
+          document.getElementById("recaptcha-token").innerText = token;
+        });
+      }
+
+      document
+        .getElementById("generate-token")
+        .addEventListener("click", onClick);
+    </script>
+  </body>
+</html>
